@@ -6,6 +6,7 @@ import com.vaadin.ui.UI;
 import java.io.Serializable;
 import javax.jms.ConnectionFactory;
 import javax.jms.JMSContext;
+import javax.jms.JMSProducer;
 import javax.jms.Message;
 import javax.jms.MessageListener;
 import javax.jms.Topic;
@@ -35,6 +36,8 @@ public abstract class AbstractMessageHub<T extends UI> implements
 
     private transient T ui;
     private transient JMSContext c;
+    private JMSProducer producer;
+    private Topic chatTopic;
 
     private AbstractMessageHub() {
 
@@ -61,9 +64,9 @@ public abstract class AbstractMessageHub<T extends UI> implements
     public void startListening() {
         try {
             InitialContext ctx = new InitialContext();
-            Topic chatTopic = (Topic) ctx.lookup(getTopicName());
+            chatTopic = (Topic) ctx.lookup(getTopicName());
             ConnectionFactory factory
-                    = (ConnectionFactory) ctx.lookup("ConnectionFactory");
+                    = (ConnectionFactory) ctx.lookup(getConnectionFactoryJndiLookup());
             c = factory.createContext();
             c.createConsumer(chatTopic).setMessageListener(this);
             c.start();
@@ -79,6 +82,25 @@ public abstract class AbstractMessageHub<T extends UI> implements
             throw new RuntimeException(ex);
         }
     }
+    
+    public synchronized void sendText(String text) {
+        getProducer().send(chatTopic, text);
+    }
+    
+    public synchronized void sendObject(Serializable object) {
+        getProducer().send(chatTopic, object);
+    }
+    
+    private JMSProducer getProducer() {
+        if(producer == null) {
+            producer = c.createProducer();
+        }
+        return producer;
+    }
+    
+    protected String getConnectionFactoryJndiLookup() {
+        return "ConnectionFactory";
+    }
 
     abstract protected String getTopicName();
 
@@ -87,7 +109,7 @@ public abstract class AbstractMessageHub<T extends UI> implements
     }
 
     @Override
-    public void onMessage(final Message message) {
+    public synchronized void onMessage(final Message message) {
         getUi().access(new Runnable() {
             @Override
             public void run() {
