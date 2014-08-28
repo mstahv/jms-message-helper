@@ -5,7 +5,7 @@
 	<groupId>org.vaadin</groupId>
 	<artifactId>jms-message-helper</artifactId>
 	<packaging>jar</packaging>
-	<version>1.0</version>
+	<version>1.2-SNAPSHOT</version>
 	<name>jms-message-helper</name>
 
 	<properties>
